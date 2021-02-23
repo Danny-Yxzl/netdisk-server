@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}来自{{shared_by}}分享的文件{% endblock %}
+{% block content %}
+    {% if sharecode %}
+    <div class="alert alert-info">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        你的分享码是：{{ sharecode }}。分享码有一定有效期（与分享链接不同），失效需要重新分享获取。
+    </div>
+    {% endif %}
+    <h1>来自{{shared_by}}分享的文件</h1>
+    <br />
+    <br />
+    <div class="alert alert-primary">当前路径：{{ from_folder }}&emsp;&emsp;<a href="?path={{ "/".join(from_folder.split("/")[1:-2]) + "/" }}">返回上级目录</a>&emsp;&emsp;<a href="?path=">返回根目录</a></div>
+    <br />
+    <div class="tab-pane active container" id="myFiles">
+        <table class="table table-hover">
+            <tr style="text-align: center;">
+                <td><strong>文件名</strong></td>
+                <td><strong>文件大小</strong></td>
+                <td><strong>下载文件</strong></td>
+            </tr>
+            {% for i in file_details %}
+            <tr style="text-align: center;">
+                <td>
+                    {% if i[2] != "-" %}
+                        {{ i.0 }}
+                    {% else %}
+                        <a href="?path={{ from_folder[from_folder.index("/") + 1:] + i.0 }}">{{ i.0 }}</a>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ i.2 }}
+                </td>
+                <td>
+                    <a href='{{ "/static/uploads/"+shared_by+"/"+from_folder+i.3+(i.0|replace("%", "%25")|replace("#", "%23")) }}' download="来自{{shared_by}}分享的文件--{{i.0}}">
+                        <button class="btn btn-primary" type="submit" id="download"{% if i.2=="-" %} disabled="disabled" style="cursor:not-allowed;" {% endif %}>下载</button>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+{% endblock %}

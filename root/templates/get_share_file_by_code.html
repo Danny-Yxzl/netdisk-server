@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}分享文件获取{% endblock %}
+
+{% block content %}
+    {% if message %}
+    <div class="alert alert-info">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        {{ message }}
+    </div>
+    {% endif %}
+	<div class="card" style="border-radius: 30px; padding: 20px;">
+	<div class="card-body">
+		<h1>通过分享码获取文件</h1>
+		<br />
+		<br />
+		<div class="tab-pane container" id="getShareFile">
+			<form id="getShareFile" action="/get-share-file-by-code" enctype="multipart/form-data" method="POST">
+				<h5>请输入文件分享码：</h5>
+				<br />
+				<input class="form-control" type="text" name="share-code" id="share-code">
+				<br />
+				<button id="getShareFile" type="submit" class="btn btn-info btn-block" style="color: white; background-color: rgb(0,123,255);">获取分享文件</button>
+			</form>
+		</div>
+		<br />
+	</div>
+	</div>
+
+<!--
+<hr>
+<br />
+<div class="text-center">
+    <a data-toggle="modal" data-target="#tosModal" href="#">《用户协议》</a>
+</div>
+<div class="modal fade" id="tosModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">《异想之旅轻量网盘服务用户协议》</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" style="height: 80vh">
+                <iframe src="https://thoughts.teambition.com/share/602946712917070042b9d500" class="w-100 h-100 border-0"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+<br /><br />
+<center>
+    <h5>特别感谢杨中天提供的前端开发、服务配置等技术指导！</h5>
+</center>
+-->
+{% endblock %}
