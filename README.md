@@ -19,7 +19,7 @@ Flask框架的Web项目运行十分简单：只需要运行项目目录下的mai
 
 
 ## 联系方式
-[mail@yixiangzhilv.com](mailto:mail@yixiangzhilv.com) or Wechat official account "异想之旅"。
+[mail@yixiangzhilv.com](mailto:mail@yixiangzhilv.com) 或 微信公众号"异想之旅"。
 
 # Yixiangzhilv Light Netdisk Server
 
