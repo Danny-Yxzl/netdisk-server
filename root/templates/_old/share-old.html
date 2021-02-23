@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>来自{{username}}的文件分享</title>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" sizes="144x144" href="../static/favicon.png" />
+    <style>
+        a:link {
+            color: darkblue;
+            text-decoration: none;
+        }
+        
+        a:visited {
+            color: darkblue;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            color: darkblue;
+            text-decoration: underline;
+        }
+        
+        a:active {
+            color: darkblue;
+            text-decoration: none;
+        }
+        
+        body {
+            margin: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>来自{{username}}分享的文件</h1>
+    <br />
+    <br />
+    <br />
+    <p>
+        <a href="../static/uploads/{{username}}/{{filename}}" download="{{filename}}--来自{{username}}分享的文件">
+            {{filename}}&ensp;&ensp;&ensp;&ensp;&ensp;（点我下载）
+        </a>
+    </p>
+    <br />
+    <br />
+    <br />
+    <p>若文件已被删除将无法下载，敬请谅解。</p>
+</body>
+
+</html>

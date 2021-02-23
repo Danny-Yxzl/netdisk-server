@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8">
+    <title>文件上传&管理 - 异想之旅</title>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" sizes="144x144" href="static/favicon.png" />
+    <style>
+        a:link {
+            color: darkblue;
+            text-decoration: none;
+        }
+        
+        a:visited {
+            color: darkblue;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            color: darkblue;
+            text-decoration: underline;
+        }
+        
+        a:active {
+            color: darkblue;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>上传文件</h1>
+    </br>
+    <p>{{message}}</p>
+    <p>
+        你的用户名是：{{username}}
+        <span>&ensp; &ensp; &ensp; &ensp;</span>
+        <a href="/login">注册/登录</a>
+        <span>&ensp;</span>
+        <a href="/logout">登出</a>
+    </p>
+    </br>
+    <form action="" enctype='multipart/form-data' method='POST'>
+        <input type="file" name="file" value="选择文件">
+        <input type="submit" value="上传文件" onclick="alert('点击确定开始上传！上传过程没有提示，请耐心等待。')">
+    </form>
+    </br>
+    </br>
+    </br>
+    <h1>我的文件</h1>
+
+    {% for i in files %}
+    <p style="display: inline;"><span style="display: inline;">
+        <a href='{{url+"/static/uploads/"+username+"/"+(i|replace("%", "%25")|replace("#", "%23"))}}' download="{{i}}" title="点我下载文件！">{{i}}</a> &ensp;&ensp;
+        <a href="{{url}}/delete/{{username}}/{{i|replace('%', '%25')|replace('#', '%23')}}">点我删除文件</a> &ensp;&ensp;
+        <form style="display: inline;" method="POST" action="/rename/{{username}}/{{i}}">
+            <input type="text" name="newname" id="newname">
+            <button type="submit" id="rename">重命名</button>
+        </form>
+        &ensp;&ensp;
+        <form style="display: inline;" method="POST" action="/get-share-url/{{username}}/{{i}}" target="_blank">
+            <button type="submit" id="rename">分享（测试中）</button>
+        </form>
+    </span></p>
+    {% endfor %}
+    <br /><br /><br /><br /><br />
+    <p>
+        <a href="https://thoughts.teambition.com/share/602946712917070042b9d500" target="_blank">《用户协议》</a>
+    </p>
+</body>
+
+</html>
