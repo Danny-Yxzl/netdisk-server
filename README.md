@@ -17,6 +17,10 @@
 
 Flask框架的Web项目运行十分简单：只需要运行项目目录下的main.py即可。该文件的最后有设置端口的语句，可根据个人需求设置。
 
+
+## 联系方式
+[mail@yixiangzhilv.com](mailto:mail@yixiangzhilv.com) or Wechat official account "异想之旅"。
+
 # Yixiangzhilv Light Netdisk Server
 
 The first successful programme made by Yixiangzhilv!
@@ -27,9 +31,6 @@ The source code is on the way, please wait!
 
 ## Introduce
 This is a Python-Web programme. It powers by Flask of Python, the HTML file creates by Jinja2 timely, and the static templates were written by Bootstrap by HTML, CSS and JavaScript. This programme is light but comprehensive - the amount of the lines of codes is smaller than a thousand, but it includes Front-End and Back-End in a web programme, static files, HTML templates and lots of other programming knowledge. It is kindness to new-hand!
-
-## 联系方式
-[mail@yixiangzhilv.com](mailto:mail@yixiangzhilv.com) or Wechat official account "异想之旅"。
 
 ## How to Use
 
