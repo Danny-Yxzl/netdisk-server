@@ -10,30 +10,64 @@
 </head>
 
 <body>
-<nav class="navbar navbar-expand-md bg-primary navbar-dark">
-    <a class="navbar-brand" href="/">异想之旅轻量网盘服务</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="collapsibleNavbar">
-        <ul class="navbar-nav ml-auto">
-            <li class="nav-item">
-                {% if not username or username.count('.')==3 %}
-                    <a class="nav-link" href="/login">注册/登录</a>
-                {% else %}
-                    <a class="nav-link" href="#">当前登录：{{username}}</a>
-                {% endif %}
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/logout">登出</a>
-            </li>
-        </ul>
+    <nav class="navbar navbar-expand-md bg-primary navbar-dark">
+        <a class="navbar-brand" href="/" target="_top">异想之旅轻量网盘服务</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="collapsibleNavbar">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    {% if not username or username.count('.')==3 %}
+                        <a class="nav-link" href="" data-toggle="modal" data-target="#showLogin">注册/登录</a>
+                    {% else %}
+                        <a class="nav-link" href="">当前登录：{{username}}</a>
+                    {% endif %}
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/logout">登出</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
     </div>
-</nav>
-<div class="container mt-4">
-    {% block content %}{% endblock %}
-</div>
 </body>
+
+
+    <div class="modal fade" id="showLogin">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">
+                        <a href="/login" target="_blank">
+                            注册/登录
+                        </a>
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" style="height: 80vh">
+                    <iframe src="/login" class="w-100 h-100 border-0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="userAgreement">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">《异想之旅轻量网盘服务用户协议》</h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" style="height: 80vh">
+                    <iframe src="https://thoughts.teambition.com/share/602946712917070042b9d500" class="w-100 h-100 border-0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% block modal %}{% endblock %}
+
 
 <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>

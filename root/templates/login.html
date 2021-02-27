@@ -1,45 +1,29 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block title %}用户登录{% endblock %}
 {% block content %}
-<div class="card" style="border-radius: 30px; padding: 20px;">
-    <div class="card-body">
-        {% if message %}
-        <div class="alert alert-info">{{ message }}</div>
-        {% endif %}
-        <h1>用户登录</h1>
-        </br>
-        </br>
-        <h5>
-            没有注册过的用户请<a href="../sign-up">点我注册</a>
-        </h5>
-        </br>
-        <form method="POST" action="" style="display: inline;">
-            <p>用户名：<input class="form-control" type="text" name="username" id="username"></p>
-            <p>密&ensp;&ensp;码：<input class="form-control" type="password" name="password" id="password"></p>
-            <button class="btn btn-primary" type="submit" id="loginBtn">登录</button>
-            <a data-toggle="modal" data-target="#tosModal" href="#">
-                <button class="btn btn-info">用户协议</button>
-            </a>
-        </form>
+    <div class="card" style="border-radius: 30px; padding: 20px;">
+        <div class="card-body">
+            {% if message %}
+            <div class="alert alert-info">{{ message }}</div>
+            {% endif %}
+            <h1>用户登录</h1>
+            </br>
+            </br>
+            <h5>
+                没有注册过的用户请<a href="/sign-up">点我注册</a>
+            </h5>
+            </br>
+            <form method="POST" action="" style="display: inline;" target="_top">
+                <p>用户名：<input class="form-control" type="text" name="username" id="username"></p>
+                <p>密&ensp;&ensp;码：<input class="form-control" type="password" name="password" id="password"></p>
+                <button class="btn btn-primary" type="submit" id="loginBtn">登录</button>
+                <a data-toggle="modal" data-target="#userAgreement" href="">
+                    <button class="btn btn-info">用户协议</button>
+                </a>
+            </form>
 
-        <br /><br />
+            <br /><br />
 
-        <div class="text-center">
-
-        </div>
-        <div class="modal fade" id="tosModal">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">《异想之旅轻量网盘服务用户协议》</h4>
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    </div>
-                    <div class="modal-body" style="height: 80vh">
-                        <iframe src="https://thoughts.teambition.com/share/602946712917070042b9d500" class="w-100 h-100 border-0"></iframe>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
-</div>
 {% endblock %}
