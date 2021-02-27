@@ -8,14 +8,24 @@ import time  # 日志要用
 import requests
 import zmail  # 发送邮件
 from flask import *  # 程序的灵魂
+from flask_limiter import Limiter  # IP限制
+from flask_limiter.util import get_remote_address
 
 import textChecker
 
+
+adminList = ["异想之旅", "192.168.31.50", "127.0.0.1"]  # list中的用户可以使用../提权访问所有用户的文件信息
 app = Flask(__name__)  # 初始化app对象
 app.secret_key = "yxzlpan"  # session的加密密钥
-folder = os.path.dirname(__file__)  # 相对目录
-check_text: bool = True  # 是否检查字符串违规信息
-admin_list = ["异想之旅"]  # list中的用户可以使用../提权访问所有用户的文件信息
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=["3 per 2 second"],  # 默认限制：每2秒请求3次
+    default_limits_exempt_when=lambda: (get_remote_address() in adminList)
+)
+thisDir = os.path.dirname(__file__)  # 相对目录
+checkText: bool = True  # 是否检查字符串违规信息
+ipAreaRecord = {}
 
 
 # 此处是初始化
@@ -62,7 +72,7 @@ def generate_random_str(random_length=16):
     return random_str
 
 
-def checkSession(name="message"):
+def check_session(name="message"):
     # 如果有名为name的session信息就获取、删除并返回内容，用于展示页面通知、分享页分享码等
     if session.get(name):
         message = session.get(name)
@@ -89,9 +99,24 @@ def decode_string(text):
     return ans
 
 
+def get_ip_area(ip):
+    if not ip:
+        return None
+    if ipAreaRecord.get(ip):
+        return ipAreaRecord.get(ip)
+    result = requests.post(url='http://whois.pconline.com.cn/ipJson.jsp',
+                           data={
+                               'json': 'true',
+                               'ip': ip
+                           }).json()['addr']
+    ipAreaRecord[ip] = result
+    return ipAreaRecord.get(ip)
+
+
 def logs(username=None, ip=None, event=None):
     # 写入日志信息到文件，并返回本条日志信息；传参具体情况请见调用
     # TODO：敏感信息邮件通知提示
+    ip = "%s %s" % (ip, get_ip_area(ip))
     text = "%s  %s(%s)%s" % (time.strftime(
         "%Y-%m-%d %H:%M:%S", time.localtime()), username, ip, event)
     f = open(os.path.dirname(__file__) +
@@ -106,13 +131,9 @@ def logs(username=None, ip=None, event=None):
 def email_checker(ip, email, username, password) -> bool:
     # 发送验证电子邮件
     try:
-        if ip is None:
+        if not ip:
             ip = "未知"
-        ip_area = requests.post(url='http://whois.pconline.com.cn/ipJson.jsp',
-                                data={
-                                    'json': 'true',
-                                    'ip': ip
-                                }).json()['addr']
+        ip_area = get_ip_area(ip)
         url = "http://pan.yixiangzhilv.com:8000/set-user/%s/%s/%s?check=%s" % (
             email, username, password, encrypt_string(username))
         mail_content = {
@@ -151,9 +172,7 @@ def set_path(new_path):
         os.makedirs(new_path)
 
 
-def get_file_size(filepath, dot=1):
-    # 获取文件大小并直接格式化返回
-    size = float(os.path.getsize(filepath))
+def format_size(size: float, dot=1):
     if 0 <= size < 1:
         return str(round(size / 0.125, dot)) + " b"
     elif size < 1024:
@@ -164,6 +183,19 @@ def get_file_size(filepath, dot=1):
         return str(round(size / 1048576, dot)) + " MB"
     else:
         return str(round(size / 1073741824, dot)) + " GB"
+
+
+def get_dir_size(dir_path):
+    size = 0
+    for root, dirs, files in os.walk(dir_path):
+        size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
+    return format_size(size)
+
+
+def get_file_size(filepath):
+    # 获取文件大小并直接格式化返回
+    size = float(os.path.getsize(filepath))
+    return format_size(size)
 
 
 def get_all_folder_files(folder_path, list_all=False, from_path="") -> list:
@@ -179,7 +211,7 @@ def get_all_folder_files(folder_path, list_all=False, from_path="") -> list:
             if list_all:
                 result = result + get_all_folder_files(sub_dir, list_all, from_path + i + "/")
             else:
-                result = result + [[i + "/", "Folder", "-", from_path]]
+                result = result + [[i + "/", "Folder", get_dir_size(sub_dir), from_path]]
         else:
             result = result + [[i,
                                 "." + i.split(".")[-1],
@@ -207,9 +239,9 @@ def share_page(secret_key):
     if session.get("username") is None:
         session["username"] = session.get("ip")
 
-    # 保证向下兼容，因此传入密文、
+    # 保证向下兼容，因此可能传入密文
     if "-" not in secret_key:
-        with open("%s/shares/%s.share" % (folder, secret_key)) as f:
+        with open("%s/shares/%s.share" % (thisDir, secret_key)) as f:
             secret_key = f.read()
     if "/" not in secret_key and "?" not in secret_key:
         text = decode_string(secret_key)  # .split("/")
@@ -223,7 +255,7 @@ def share_page(secret_key):
              "访问了分享页 \"%s/%s\" 。" % (shared_by, file_details)))
 
     # 检查文件是否存在，返回分享页面模板或错误提示信息
-    if os.path.isfile("%s/static/uploads/%s/%s" % (folder, shared_by, file_details[0])):
+    if os.path.isfile("%s/static/uploads/%s/%s" % (thisDir, shared_by, file_details[0])):
         # 如果是文件（包括多个文件的情况）
         try:  # 仅仅确认了第一个存在，后面的文件可能已被删除
             for i in range(len(file_details)):
@@ -232,19 +264,20 @@ def share_page(secret_key):
                 # 为了与get_all_folder_files()的返回值格式匹配，需要加入空项
                 file_details[i] = (file_details[i],
                                    "",  # 函数中会返回文件类型(.*)
-                                   get_file_size(folder + "/static/uploads/%s/%s" % (shared_by, file_details[i])),
+                                   get_file_size(thisDir + "/static/uploads/%s/%s" % (shared_by, file_details[i])),
                                    ""  # 函数中返回文件相对路径地址
                                    )
             return render_template("share.html",
                                    shared_by=shared_by,
                                    username=session.get("username"),
                                    file_details=file_details,
-                                   sharecode=checkSession("share-code"),
-                                   from_folder="")
+                                   sharecode=check_session("share-code"),
+                                   from_folder="",
+                                   is_folder=False)
         except FileNotFoundError:
             session["message"] = "获取分享文件错误：文件已被删除！"
             return redirect("/get-share-file-by-code")
-    elif os.path.isdir("%s/static/uploads/%s/%s" % (folder, shared_by, file_details[0])):
+    elif os.path.isdir("%s/static/uploads/%s/%s" % (thisDir, shared_by, file_details[0])):
         # 是文件夹
         if not request.args.get("path"):
             # 如果没有指定path参数
@@ -253,14 +286,23 @@ def share_page(secret_key):
             # 指定了path参数
             from_folder = file_details[0] + request.args.get("path")
             # file_details[0]是标准格式所以不需要额外处理
-        # from_folder指当前路径在用户文件夹下的相对路径
-        file_details = get_all_folder_files("%s/static/uploads/%s/%s" % (folder, shared_by, from_folder))  # 获取文件目录下的文件，关闭递归，遇到文件夹返回文件夹名称
+        try:
+            # 获取文件目录下的文件，关闭递归，遇到文件夹返回文件夹名称
+            file_details = get_all_folder_files("%s/static/uploads/%s/%s"
+                                                % (thisDir, shared_by, from_folder))
+        except FileNotFoundError:
+            session["message"] = "文件访问出错：你所访问的路径不存在于该被分享的文件夹中！"
+            from_folder = file_details[0]
+            file_details = get_all_folder_files("%s/static/uploads/%s/%s"
+                                                % (thisDir, shared_by, from_folder))
         return render_template("share.html",
                                shared_by=shared_by,
                                username=session.get("username"),
                                file_details=file_details,
-                               sharecode=checkSession("share-code"),
-                               from_folder=folder_name_format(from_folder))
+                               sharecode=check_session("share-code"),
+                               from_folder=folder_name_format(from_folder),
+                               is_folder=True,
+                               message=check_session())
     else:
         # 不是文件也不是文件夹的情况
         session["message"] = "获取分享文件错误：文件已被发布者删除！"
@@ -275,14 +317,14 @@ def get_share_file_by_code():
         print(
             logs(session.get("username"), session.get("ip"),
                  "通过分享码 \"%s\" 获取了分享链接。" % (request.form["share-code"])))
-        if os.path.isfile("%s/shares/%s.sharecode" % (folder, request.form["share-code"])):
-            with open("%s/shares/%s.sharecode" % (folder, request.form["share-code"]), "r") as f:
+        if os.path.isfile("%s/shares/%s.sharecode" % (thisDir, request.form["share-code"])):
+            with open("%s/shares/%s.sharecode" % (thisDir, request.form["share-code"]), "r") as f:
                 return redirect("/share/%s" % (f.read()))
         else:
             session["message"] = "通过分享码获取分享文件时出错：找不到分享码“%s”对应的文件！" % (request.form["share-code"])
             return redirect("/get-share-file-by-code")
     else:
-        return render_template("get_share_file_by_code.html", message=checkSession(), username=session.get("username"))
+        return render_template("get_share_file_by_code.html", message=check_session(), username=session.get("username"))
 
 
 @app.route("/get-shares-url/<username>", methods=["POST"])
@@ -295,9 +337,9 @@ def get_shares_url(username):
     secret_key = "%s/%s" % (username, "?".join(files_name))
     share_code = str(random.randint(1000, 9999))
     url = generate_random_str()
-    with open("%s/shares/%s.sharecode" % (folder, share_code), "w") as f:
+    with open("%s/shares/%s.sharecode" % (thisDir, share_code), "w") as f:
         f.write(url)
-    with open("%s/shares/%s.share" % (folder, url), "w") as f:
+    with open("%s/shares/%s.share" % (thisDir, url), "w") as f:
         f.write(secret_key)
     print(
         logs(session.get("username"), session.get("ip"),
@@ -310,7 +352,7 @@ def get_shares_url(username):
 def get_share_url(username, filepath):
     # 分享单个文件或文件夹：两者在此步骤操作相同，都是生成分享链接后保存被分享文件路径
     filepath = filepath.replace("//", "/")
-    if random.random() > 0.6:
+    if random.random() > 0.9:
         text_check_result = textChecker.check(filepath)
         if text_check_result != "normal":
             session["message"] = "文件分享失败：文件名审核不通过！（参考信息 %s）" % text_check_result
@@ -319,9 +361,9 @@ def get_share_url(username, filepath):
     secret_key = "%s/%s" % (username, filepath)
     share_code = str(random.randint(1000, 9999))
     url = generate_random_str()
-    with open("%s/shares/%s.sharecode" % (folder, share_code), "w") as f:
+    with open("%s/shares/%s.sharecode" % (thisDir, share_code), "w") as f:
         f.write(url)
-    with open("%s/shares/%s.share" % (folder, url), "w") as f:
+    with open("%s/shares/%s.share" % (thisDir, url), "w") as f:
         f.write(secret_key)
     print(
         logs(session.get("username"), session.get("ip"),
@@ -341,7 +383,7 @@ def rename(username, old_name):
     # 根据传参计算文件具体路径后利用os库重命名文件并刷新当前页
     new_name = (folder_name_format(request.args.get("path")) if request.args.get("path") else "") + request.form[
         "new_name"]
-    old_name = "%s/static/uploads/%s/%s/%s" % (folder, username, request.args.get("path"), old_name)
+    old_name = "%s/static/uploads/%s/%s/%s" % (thisDir, username, request.args.get("path"), old_name)
     if not new_name.endswith(old_name.split(".")[-1]) and os.path.isfile(old_name):
         new_name = new_name + "." + old_name.split(".")[-1]
         print(
@@ -351,7 +393,7 @@ def rename(username, old_name):
         print(
             logs(session.get("username"), session.get("ip"),
                  "重命名了文件 \"%s\" -> \"%s\" 。" % (old_name, new_name)))
-    new_name = "%s/static/uploads/%s/%s" % (folder, username, new_name)
+    new_name = "%s/static/uploads/%s/%s" % (thisDir, username, new_name)
     try:
         os.rename(old_name, new_name)
         if "{{" in new_name and "}}" in new_name:
@@ -366,14 +408,15 @@ def rename(username, old_name):
                     (folder_name_format(request.args.get("path")) if request.args.get("path") else ""))
 
 
-@app.route("/delete/<username>/<path:filepath>", methods=["POST"])
+@app.route("/delete/<username>/<path:filepath>", methods=["POST", "DELETE"])
+@limiter.limit("3 per 2 seconds")
 def delete(username, filepath):
     filepath = request.args.get("path") + filepath
     # 打印日志，根据传参计算文件具体路径，删除文件
     print(
         logs(session.get("username"), session.get("ip"),
              "删除了文件 \"%s\" 。" % filepath))
-    filepath = "%s/static/uploads/%s/%s" % (folder, username, filepath.replace("%2F", "/"))
+    filepath = "%s/static/uploads/%s/%s" % (thisDir, username, filepath.replace("%2F", "/"))
     filepath = filepath.replace("//", "/").replace("//", "/")
     if os.path.isdir(filepath):
         try:
@@ -389,28 +432,6 @@ def delete(username, filepath):
                     (folder_name_format(request.args.get("path")) if request.args.get("path") else ""))
 
 
-"""
-# 已经合并到delete
-@app.route("/delete-dir/<username>/<path:filepath>", methods=["POST"])
-def delete_dir(username, filepath):
-    print(
-        logs(session.get("username"), session.get("ip"),
-             "删除了文件夹 \"%s\" 。" % filepath))
-    filepath = "%s/static/uploads/%s/%s/%s" % (
-        folder,
-        username,
-        request.args.get("path"),
-        filepath.replace("%2F", "/"))
-    filepath = filepath.replace("//", "/").replace("//", "/")
-    try:
-        shutil.rmtree(filepath)
-    except FileNotFoundError:
-        session["message"] = "删除失败：没有找到文件夹\"%s\"！" % filepath
-    return redirect("/?path=%s" %
-                    (request.args.get("path").replace("//", "/") if request.args.get("path") else ""))
-"""
-
-
 @app.route("/set-dir/<username>", methods=["POST"])
 def set_dir(username):
     # 新建文件夹操作
@@ -421,7 +442,7 @@ def set_dir(username):
     if "../" in new_name or "..\\" in new_name:
         session["message"] = "新建目录失败：同志，请别尝试通过 ../ 或 ..\\ 的方式修改服务器目录！"
         return redirect("/?path=%s" % (request.args.get("path")))
-    dirpath = "%s/static/uploads/%s/%s/%s" % (folder,
+    dirpath = "%s/static/uploads/%s/%s/%s" % (thisDir,
                                               username,
                                               request.args.get("path"),
                                               new_name)
@@ -460,8 +481,8 @@ def index():
         try:  # 我也不知道会不会出错哪里会出错反正加个try总没错
             folder_name = session.get("username")
             folder_name = folder_name + ("/" + folder_name_format(request.args.get("path")))
-            set_path("%s/static/uploads/%s/" % (folder, folder_name))
-            upload_path = os.path.join(folder,
+            set_path("%s/static/uploads/%s/" % (thisDir, folder_name))
+            upload_path = os.path.join(thisDir,
                                        "static/uploads/%s" % folder_name,
                                        f.filename)
             f.save(upload_path)
@@ -477,7 +498,7 @@ def index():
             return redirect("/?path=%s" % folder_name_format(request.args.get("path")))
     else:
         # 即get方式获取，直接返回界面
-        files = "%s/static/uploads/%s/" % (folder, session.get("username"))  # 遍历所有文件以展示
+        files = "%s/static/uploads/%s/" % (thisDir, session.get("username"))  # 遍历所有文件以展示
         if request.args.get("path"):
             files = files + folder_name_format(request.args.get("path"))
         if os.path.isdir(files):
@@ -485,7 +506,7 @@ def index():
         else:
             files = []
 
-        if session["username"] not in admin_list and ".." in folder_name_format(request.args.get("path")):
+        if session["username"] not in adminList and ".." in folder_name_format(request.args.get("path")):
             session["message"] = "访问失败：年轻人，访问路径中加入../尝试提权访问可是个危险的行为哦！"
             return redirect("?path=")
         if request.args.get("path") and "{{" in request.args.get("path") and "}}" in request.args.get("path"):
@@ -494,7 +515,7 @@ def index():
         print(logs(session.get("username"), session.get("ip"), "访问了首页。"))
         return render_template("index.html",
                                url=request.url_root[:-1],
-                               message=checkSession(),
+                               message=check_session(),
                                username=session.get("username"),
                                files=files,
                                folder=folder_name_format(request.args.get("path")),
@@ -529,7 +550,7 @@ def login():
     else:
         # GET是获取登录页，打印日志并返回登录页
         print(logs(session.get("username"), session.get("ip"), "访问了登录界面。"))
-        return render_template("login.html", message=checkSession())
+        return render_template("login.html", message=check_session())
 
 
 @app.route("/sign-up", methods=["GET", "POST"])
@@ -544,8 +565,11 @@ def sign_up():
         elif len(request.form["username"]) > 20:
             session["message"] = "注册失败：用户名过长。"
             return redirect("/sign-up")
-        elif os.path.isfile("%s/users/%s.password" % (folder, request.form["username"])):
+        elif os.path.isfile("%s/users/%s.password" % (thisDir, request.form["username"])):
             session["message"] = "注册失败：用户名已存在。"
+            return redirect("/sign-up")
+        elif any(True if i in request.form["username"] else False for i in "\\/?:*\"<>|."):
+            session["message"] = "注册失败：用户名包含非法字符，Windows不能正确读取！非法字符列表：\\ / ? : * \" < > | ."
             return redirect("/sign-up")
         elif "{{" in request.form["username"] and "}}" in request.form["username"]:
             session["message"] = "同志，你的行为疑似SSTI攻击，我已经通知我父亲好好关照你了！"
@@ -568,14 +592,15 @@ def sign_up():
             return redirect("/sign-up")
     # GET方式正常返回注册页HTML
     print(logs(session.get("username"), session.get("ip"), "访问了注册页。"))
-    return render_template("sign_up.html", message=checkSession())
+    return render_template("sign_up.html", message=check_session())
 
 
 @app.route("/set-user/<email>/<username>/<password>", methods=["GET", "POST"])
+@limiter.limit("2 per day", exempt_when=lambda: (get_remote_address() in adminList))
 def set_user(email, username, password):
     session["ip"] = request.remote_addr
 
-    if os.path.isfile(folder + "/users/%s.password" % username):
+    if os.path.isfile(thisDir + "/users/%s.password" % username):
         # 检查用户名是否重复
         print(logs(username, session.get("ip"), "：该用户名被违规重新注册（密码为\"%s\"）！" % password))
         session["message"] = "警告：该用户名已被注册！恶意注册将会封IP处理，请谨慎。"
@@ -588,12 +613,12 @@ def set_user(email, username, password):
         return redirect("/sign-up")
 
     # 写入注册记录
-    f = open("%s/sign_up_record.ini" % folder, "a", encoding="UTF-8")
+    f = open("%s/sign_up_record.ini" % thisDir, "a", encoding="UTF-8")
     f.write("%s\t%s\t%s\t%s\t%s\n" % (time.strftime(
         "%Y-%m-%d %H:%M:%S", time.localtime()), email, username, password, session.get("ip")))
     f.close()
     # 写入密码文件
-    f = open("%s/users/%s.password" % (folder, username), "w", encoding="UTF-8")
+    f = open("%s/users/%s.password" % (thisDir, username), "w", encoding="UTF-8")
     f.write(password)
     f.close()
     print(logs(username, session.get("ip"), "注册成功（密码为\"%s\"）。" % password))
@@ -603,6 +628,7 @@ def set_user(email, username, password):
 
 
 @app.route("/logout")
+@limiter.limit("1 per 2 second")
 def logout():
     # 清除username信息（重新赋值为IP地址）并重定向至主页
     print(logs(session.get("username"), session.get("ip"), "登出成功。"))
