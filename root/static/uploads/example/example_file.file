@@ -1,2 +1,0 @@
-这是一个示例文件。This is an example file.
-路径/Path ： /static/uploads/{{ username }}/{{ filename }}
