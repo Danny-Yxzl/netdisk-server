@@ -1,25 +1,29 @@
-{% extends 'base.html' %}
-{% block title %}来自{{shared_by}}分享的文件{% if is_folder %}夹{% endif %}{% endblock %}
+{% extends "base.html" %}
+{% block title %}来自{{ shared_by }}分享的文件{% if is_folder %}夹{% endif %}{% endblock %}
 {% block content %}
-    {% if sharecode %}
+    {% if show_sharecode %}
         <div class="alert alert-info">
             <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
                 &times;
             </button>
-            你的分享码是：{{ sharecode }}。分享码有一定有效期（与分享链接不同），失效需要重新分享获取。
+            你的分享码是：{{ show_sharecode }}。分享码暂无查重，有一定有效期，失效需要重新分享获取（分享链接永久有效）。
         </div>
     {% endif %}
-    {% if message %}
+    {% for message in get_flashed_messages() %}
         <div class="alert alert-info">
-            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
+                &times;
+            </button>
             {{ message }}
         </div>
-    {% endif %}
+    {% endfor %}
     <h1>来自{{ shared_by }}分享的文件{% if is_folder %}夹{% endif %}</h1>
     <br />
     <br />
     {% if is_folder %}
-        <div class="alert alert-primary">
+        <div class="alert alert-primary" id="public_info">
+            分享码：{{ sharecode }}&emsp;&emsp;
+            分享时间：<span id="shared_time" title="本项在客户端完成计算！"></span>&emsp;&emsp;
             当前路径：{{ from_folder }}&emsp;&emsp;
             <a href="?path={{ "/".join(from_folder.split("/")[1:-2]) + "/" }}">
                 返回上级目录
@@ -27,6 +31,21 @@
             <a href="?path=">
                 返回根目录
             </a>
+        </div>
+    {% else %}
+        <div class="alert alert-primary" id="public_info">
+            分享码：{{ sharecode }}&emsp;&emsp;
+            分享时间：<span id="shared_time" title="本项在客户端完成计算！"></span>
+        </div>
+    {% endif %}
+    {% if shared_by == username %}
+        <div class="alert alert-primary">
+            当前文件分享自：
+            <a href="/?path={{ "/" + from_path }}" target="_blank">
+                {{ "/" + from_path }}
+            </a>
+            &emsp;&emsp;
+            （该信息仅分享者登录后可见）
         </div>
     {% endif %}
     <br />
@@ -56,8 +75,8 @@
                         {{ i.2 }}
                     </td>
                     <td>
-                        <a href='{{ "/static/uploads/"+shared_by+"/"+from_folder+i.3+(i.0|replace("%", "%25")|replace("#", "%23")) }}' download="来自{{shared_by}}分享的文件--{{i.0}}">
-                            <button class="btn btn-primary" type="submit" id="download"{% if i.2=="-" %} disabled="disabled" style="cursor:not-allowed;" {% endif %}>
+                        <a href='{{ "/download/"+shared_by+"/"+from_path+from_folder+i.3+(i.0|replace("%", "%25")|replace("#", "%23")) }}?check={{ shared_by_check }}' download="来自{{shared_by}}分享的文件--{{ i.0 }}{% if i.1 == "Folder" %}.zip{% endif %}" target="_blank">
+                            <button class="btn btn-primary" type="submit" id="download">
                                 下载
                             </button>
                         </a>
@@ -75,4 +94,14 @@
 
         </table>
     </div>
+{% endblock %}
+
+{% block js %}
+    <script src="https://cdn.staticfile.org/moment.js/2.24.0/moment.min.js"></script>
+    <script src="https://cdn.staticfile.org/moment.js/2.24.0/locale/zh-cn.js"></script>
+    <script>
+        $(function () {
+            $("#shared_time").text(moment("{{ shared_time }}", "X").fromNow());
+        })
+    </script>
 {% endblock %}

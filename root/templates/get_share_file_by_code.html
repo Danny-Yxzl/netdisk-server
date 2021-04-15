@@ -1,25 +1,25 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block title %}通过分享码获取分享{% endblock %}
 
 {% block content %}
-    {% if message %}
+    {% for message in get_flashed_messages() %}
         <div class="alert alert-info">
             <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
                 &times;
             </button>
             {{ message }}
         </div>
-    {% endif %}
+    {% endfor %}
 	<div class="card" style="border-radius: 30px; padding: 20px;">
         <div class="card-body">
             <h1>通过分享码获取分享</h1>
             <br />
             <br />
             <div class="tab-pane container" id="getShareFile">
-                <form id="getShareFile" action="/get-share-file-by-code" enctype="multipart/form-data" method="POST" target="_blank">
+                <form id="getShareFile" action="/s" enctype="multipart/form-data" method="POST" target="_blank">
                     <h5>请输入文件分享码：</h5>
                     <br />
-                    <input class="form-control" type="text" name="share-code" id="share-code">
+                    <input class="form-control" type="text" name="share-code" id="share-code" required>
                     <br />
                     <button id="getShareFile" type="submit" class="btn btn-info btn-block" style="color: white; background-color: rgb(0,123,255);">获取分享文件</button>
                 </form>
@@ -29,8 +29,4 @@
 	</div>
 
     <br />
-
-    <!--<div style="text-align: center;">
-        <h5>特别感谢杨中天提供的前端开发、服务配置等技术指导！</h5>
-    </div>-->
 {% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ send_to }}发起的文件收集{% endblock %}
+
+
+{% block content %}
+    <div class="card" style="border-radius: 30px; padding: 20px;">
+        <div class="card-body">
+            <h1> {{ send_to }} 发起的文件收集</h1>
+            <br />
+            {% for message in get_flashed_messages() %}
+                <div class="alert alert-info">
+                    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
+                        &times;
+                    </button>
+                    {{ message }}
+                </div>
+            {% endfor %}
+            <div class="alert alert-info" style="margin-top: 20px; margin-bottom: 35px;">
+                当前任务名称：<a href="">{{ taskname }}</a>
+                &emsp;&emsp;
+                <span title="本次服务器搭建时复制了文件，但未来服务器之间的文件不会互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
+                    当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
+                </span>                &emsp;&emsp;
+                你上传的文件会提交给：{{ send_to }}，请注意保护隐私安全。
+            </div>
+            <form id="uploadFileForm" action="" enctype="multipart/form-data" method="POST">
+                <div class="form-group">
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="uploadFile" name="file" value="选择文件">
+                        <label id="uploadFileLabel" class="custom-file-label" for="uploadFile">选择文件</label>
+                    </div>
+                </div>
+                <button id="uploadFileSubmit" type="button" class="btn btn-info btn-block" style="color: white; background-color: rgb(0,123,255);">上传文件</button>
+            </form>
+
+            <br /><br /><br />
+
+            <div style="text-align: center;">
+                <h5>本项目由王子开发，特别感谢杨中天提供的前端开发、服务配置等技术指导！</h5>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+
+{% block js %}
+    <script>
+        $('#uploadFile').change(function() {
+            $('#uploadFileLabel').html(this.files[0].name)
+        })
+        $('#uploadFileSubmit').click(function() {
+            if ($(this).text() === "再次点击开始上传！上传过程没有提示，请耐心等待。") {
+                $('#uploadFileForm').submit()
+                $(this).text("文件正在火速上传中，请稍后...")
+            } else if ($(this).text() === '上传文件') {
+                $(this).text("再次点击开始上传！上传过程没有提示，请耐心等待。")
+                $(this).addClass('bg-primary text-white')
+            }
+        })
+    </script>
+{% endblock %}

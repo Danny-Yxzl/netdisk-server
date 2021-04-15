@@ -4,28 +4,44 @@
 {% block content %}
     <div class="card" style="border-radius: 30px; padding: 20px;">
         <div class="card-body">
-        {% if message %}
-        <div class="alert alert-info">{{ message }}</div>
-        {% endif %}
+        {% for message in get_flashed_messages() %}
+            <div class="alert alert-info">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
+                    &times;
+                </button>
+                {{ message }}
+            </div>
+        {% endfor %}
         <h1>用户注册</h1>
         </br>
-        <h5>
+        <h6>
             已有帐号？
             <a href="../login">点我直接登录</a>
-        </h5>
+        </h6>
         </br>
-        <h5>
+        <h6>
             目前中文用户名的兼容性问题已经解决，欢迎广大用户参与测试！
             应国家要求，注册需要验证您的邮箱地址，敬请谅解。有任何问题请联系我们<a href="mailto:mail@yixiangzhilv.com">mail@yixiangzhilv.com</a>。
-        </h5>
-        </br></br>
+        </h6>
+        <br />
+        <h6>
+            修改密码方法：<br />
+            <li>
+                输入注册时使用的邮箱地址和用户名（大小写敏感）并输入新密码，通过验证邮件修改
+            </li>
+            <li>
+                登录要修改的账号后直接输入用户名和新密码
+            </li>
+        </h6>
+        </br>
+        </br>
         <form method="POST" action="" style="display: inline;">
             <p>邮箱地址：<input class="form-control" type="email" name="email" id="email"></p>
             <p>用户名：<input class="form-control" type="text" name="username" id="username"></p>
             <p>密&ensp;&ensp;码：<input class="form-control" type="password" name="password" id="password"></p>
             <button class="btn btn-primary" type="submit" id="loginBtn">注册</button>
-            <a data-toggle="modal" data-target="#userAgreement" href="">
-                <button class="btn btn-info">用户协议</button>
+            <a href="https://thoughts.teambition.com/share/602946712917070042b9d500" target="_blank" style="text-decoration: None;">
+                <button class="btn btn-info" type="button">用户协议</button>
             </a>
         </form>
 

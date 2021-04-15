@@ -11,19 +11,22 @@
 
     <div class="tab-pane active container" id="myFiles">
         <br />
-        {% if message %}
-        <div class="alert alert-info">
-            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
-                &times;
-            </button>
-            {{ message }}
-        </div>
-        {% endif %}
+        {% for message in get_flashed_messages() %}
+            <div class="alert alert-info">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">
+                    &times;
+                </button>
+                {{ message }}
+            </div>
+        {% endfor %}
         <div class="alert alert-primary">
-            你的用户名是：{{ username }}&emsp;&emsp;
-            当前路径：{{ folder if folder else "/" }}&emsp;&emsp;
+            已用空间：{{ sum_size.0 }} / {{ max_size.0 }}&emsp;&emsp;
+            当前路径：{{ "/" + folder }}&emsp;&emsp;
             <a href="/?path={{ "/".join(folder.split("/")[:-2]) + "/" }}">返回上级目录</a>&emsp;&emsp;
-            <a href="/?path=">返回根目录</a>
+            <a href="/?path=">返回根目录</a>&emsp;&emsp;
+            <span id="currentServer" title="点我可切换服务器；服务器之间的文件、用户信息暂不互通！">
+                当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
+            </span>
         </div>
 
         <table class="table table-hover">
@@ -32,17 +35,39 @@
             </tr>
             <tr>
                 <a data-toggle="modal" data-target="#showUpload">
-                    <button class="btn btn-primary">上传文件</button>
+                    <button class="btn btn-primary" {% if sum_size.1 >= max_size.1 %} disabled="disabled" style="cursor:not-allowed;" title="你当前空间已满，请联系我们扩容！"{% else %} title="上传文件到当前目录"{% endif %}>
+                        上传文件
+                    </button>
                 </a>
                 <a data-toggle="modal" data-target="#setFolder">
-                    <button class="btn btn-primary">新建文件夹</button>
+                    <button class="btn btn-primary" title="新建文件夹到当前目录">新建文件夹</button>
                 </a>
-                <button id="shareFiles" class="btn btn-primary" {% if files==[ ] %} disabled="disabled" style="cursor:not-allowed;" {% endif %}>
-                    分享所选文件
-                </button>
+                <a>
+                    <button id="deleteFiles" class="btn btn-primary">
+                        删除所选文件
+                    </button>
+                </a>
+                <a>
+                    <button id="shareFiles" class="btn btn-primary">
+                        分享所选文件
+                    </button>
+                </a>
                 <a data-toggle="modal" data-target="#showShareCodeInputer">
-                    <button class="btn btn-primary">通过分享码获取分享</button>
+                    <button class="btn btn-primary" title="通过四位数字的分享码获取分享文件">
+                        通过分享码获取分享
+                    </button>
                 </a>
+                {% if username.count(".") != 3 %}
+                    <a data-toggle="modal" data-target="#collectFiles">
+                        <button class="btn btn-primary" title="他人可快速上传文件到“文件收集”目录下">
+                            文件收集
+                        </button>
+                    </a>
+                {% else %}
+                    <a data-toggle="modal" data-target="#collectFiles">
+                        <button class="btn btn-primary" disabled="disabled" style="cursor:not-allowed;" title="请在登录后使用文件收集功能！由于您的IP可能会变更，为了防止不必要的麻烦，特设此限制，敬请谅解。">文件收集</button>
+                    </a>
+                {% endif %}
             </tr>
             <tr>
                 <p></p>
@@ -52,17 +77,17 @@
                 <td><strong>选择</strong></td>
                 <td><strong>文件名</strong></td>
                 <td><strong>文件大小</strong></td>
-                <td><strong>下载文件</strong></td>
+                <td><strong title="下载文件夹时会打包为ZIP">下载文件</strong></td>
                 <td><strong>删除文件</strong></td>
-                <td><strong>重命名</strong></td>
-                <td><strong>分享</strong></td>
+                <td><strong title="暂不允许修改文件的扩展名">重命名</strong></td>
+                <td><strong title="分享单个文件">分享</strong></td>
             </tr>
             {% for i in files %}
-            <tr style="text-align: center;">
+            <tr style="text-align: center;" id="file">
                 <td>
-                    <input type="checkbox" value="|{{ folder }}{{ i.0 }}" {% if i.2=="-" %} disabled="disabled" style="cursor:not-allowed;" {% endif %}>
+                    <input type="checkbox" value="|{{ folder }}{{ i.0 }}" {% if i.1=="Folder" %} disabled="disabled" style="cursor:not-allowed;" {% endif %}>
                 </td>
-                <td style="max-width: 300px;">
+                <td style="max-width: 300px;" id="Filename">
                     {% if i.1 == "Folder" %}
                     <a href="?path={{ folder }}{{ i.0 }}">
                         {{ i.0 }}
@@ -75,31 +100,31 @@
                     {{ i.2 }}
                 </td>
                 <td>
-                    <a href="{{ url }}/static/uploads/{{ username }}/{{ folder }}{{ (i.0|replace(" % ", "%25 ")|replace("# ", "%23 ")) }}" download="{{ i.0 }}">
-                        <button class="btn btn-primary" type="submit" id="download"{% if i.2=="-" %} disabled="disabled" style="cursor:not-allowed;" {% endif %}>
+                    <a href="{{ url }}/download/{{ username }}/{{ folder }}{{ (i.0|replace(" % ", "%25 ")|replace("# ", "%23 ")) }}" download="{{ i.0 }}{% if i.1 == "Folder" %}.zip{% endif %}" target="_blank">
+                        <button class="btn btn-primary" type="submit" id="download">
                             下载
                         </button>
                     </a>
                 </td>
                 <td>
                     <form style="display: inline;" method="POST" action="/delete/{{ username }}/{{ i.0|replace('%', '%25')|replace('#', '%23') }}?path={{ folder }}">
-                        <button class="btn btn-primary" type="submit" id="delete">
+                        <button class="btn btn-primary" type="submit" value="{{ i.0 }}" id="deleteFile"{% if i.0 == "文件收集/" %} disabled="disabled" style="cursor:not-allowed;" title="不可操作文件收集目录！"{% elif folder == "文件收集/" %} title="删除该目录将会丢失一切收集到的文件，请慎重。"{% endif %}>
                             删除
                         </button>
                     </form>
                 </td>
                 <td style="width: 250px;">
                     <form class="form-inline" method="POST" action="/rename/{{ username }}/{{ i.0|replace('%', '%25')|replace('#', '%23') }}?path={{ folder }}">
-                        <input style="width: 150px;" type="text" name="new_name" id="new_name" class="form-control" placeholder="新文件名({{ i.1 }})">
-                        <button class="btn btn-primary" type="submit" id="rename">
+                        <input style="width: 150px;" type="text" name="new_name" id="new_name" class="form-control" placeholder="新文件名({{ i.1 }})" required>
+                        <button class="btn btn-primary" type="submit" id="rename"{% if i.0[:5] == "文件收集/" or folder == "文件收集/" %} disabled="disabled" style="cursor:not-allowed;" title="不可操作文件收集目录！"{% endif %}>
                             重命名
                         </button>
                     </form>
                 </td>
                 <td>
-                    <form style="display: inline;" method="POST" action="/get-share-url/{{ username }}/{{ folder }}{{ i.0 }}" target="_blank">
+                    <form style="display: inline;" method="POST" action="/get-share-url/{{ username }}/{{ folder }}{{ i.0 }}?path={{ folder }}" target="_blank">
                         <button class="btn btn-primary" type="submit" id="share">
-                            分享
+                            分享{% if l %}{% endif %}
                         </button>
                     </form>
                 </td>
@@ -118,14 +143,17 @@
     <br />
 
     <div style="text-align: center;">
-        <a data-toggle="modal" data-target="#userAgreement">
+        <a href="https://thoughts.teambition.com/share/602946712917070042b9d500" target="_blank" style="text-decoration: None;">
             <button class="btn btn-info">用户协议</button>
         </a>
-        <a data-toggle="modal" data-target="#updateLog">
+        <a href="https://thoughts.teambition.com/share/602fe2639231d9004a2fdb01" target="_blank" style="text-decoration: None;">
             <button class="btn btn-info">更新日志</button>
         </a>
-        <a data-toggle="modal" data-target="#tutorial">
+        <a href="https://thoughts.teambition.com/share/6034f9d95d02fb0046e47719" target="_blank" style="text-decoration: None;">
             <button class="btn btn-info">使用教程</button>
+        </a>
+         <a data-toggle="modal" data-target="#chatPage">
+            <button class="btn btn-info">留言板</button>
         </a>
     </div>
 
@@ -138,32 +166,17 @@
 
 
 {% block modal %}
-    <div class="modal fade" id="updateLog">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">《异想之旅轻量网盘服务更新日志》</h4>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body" style="height: 80vh">
-                    <iframe src="https://thoughts.teambition.com/share/602fe2639231d9004a2fdb01" class="w-100 h-100 border-0"></iframe>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="tutorial">
+    <div class="modal fade" id="chatPage">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">
-                        <a href="https://thoughts.teambition.com/share/6034f9d95d02fb0046e47719" target="_blank">
-                            使用教程
-                        </a>
+                        异想之旅轻量网盘服务留言板
                     </h4>
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
-                <div class="modal-body" style="height: 80vh">
-                    <iframe src="https://thoughts.teambition.com/share/6034f9d95d02fb0046e47719" class="w-100 h-100 border-0"></iframe>
+                <div class="modal-body" style="height: 80vh;">
+                    <iframe src="https://chat.yixiangzhilv.com/Pan?send_type=public" class="w-100 h-100 border-0"></iframe>
                 </div>
             </div>
         </div>
@@ -177,9 +190,15 @@
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info">当前路径：{{ folder if folder else "/" }}</div>
+                    <div class="alert alert-info">
+                        当前路径：{{ "/" + folder }}
+                        &emsp;&emsp;
+                        <span title="本次服务器搭建时复制了文件，但未来服务器之间的文件不会互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
+                            当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
+                        </span>
+                    </div>
                     <form method="POST" action="/set-dir/{{ username }}?path={{ folder }}" style="display: inline; text-align: center;">
-                        <input style="display: inline; width: 85%;" type="text" name="new_folder_name" id="new_folder_name" class="form-control" placeholder="请输入新文件夹名称">
+                        <input style="display: inline; width: 85%;" type="text" name="new_folder_name" id="new_folder_name" class="form-control" placeholder="请输入新文件夹名称" required>
                         <button style="display: inline;" class="btn btn-primary" type="submit" id="rename">新建文件夹</button>
                     </form>
                 </div>
@@ -194,8 +213,14 @@
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info">当前路径：{{ folder if folder else "/" }}</div>
-                    <form id="uploadFileForm" action="?path={{ folder }}" enctype="multipart/form-data" method="POST">
+                    <div class="alert alert-info">
+                        当前路径：{{ "/" + folder }}
+                        &emsp;&emsp;
+                        <span title="本次服务器搭建时复制了文件，但未来服务器之间的文件不会互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
+                            当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
+                        </span>
+                    </div>
+                    <form id="uploadFileForm" action="/upload?path={{ folder }}" enctype="multipart/form-data" method="POST">
                         <div class="form-group">
                             <div class="custom-file">
                                 <input type="file" class="custom-file-input" id="uploadFile" name="file" value="选择文件">
@@ -213,14 +238,35 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">
-                        <a href="/share" target="_blank">
+                        <a href="/s" target="_blank">
                             通过分享码获取分享
                         </a>
                     </h4>
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body" style="height: 80vh">
-                    <iframe src="/share" class="w-100 h-100 border-0"></iframe>
+                    <iframe src="/s" class="w-100 h-100 border-0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="collectFiles">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">
+                        创建文件收集任务
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" action="/set-collect-task" target="_blank">
+                        <input type="text" name="taskname" class="form-control" placeholder="请输入任务名称，任务收集的文件保存在“/文件收集/<任务名称>”目录下。" required>
+                        <br />
+                        <button class="btn btn-primary btn-block" type="submit">
+                            创建任务
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -230,16 +276,27 @@
 
 {% block js %}
     <script>
-        $('#uploadFile').change(function() {
-            $('#uploadFileLabel').html(this.files[0].name)
+        $("#currentServer").click(function () {
+            if(location.host === "pan.yixiangzhilv.com"){
+                window.open("http://pan.yxzl.top:8000/", "_top");
+            }else if(location.host === "pan.yxzl.top:8000"){
+                window.open("https://pan.yixiangzhilv.com/", "_top");
+            }else{
+                $(this).hide();
+            }
         })
-        $('#uploadFileSubmit').click(function() {
+    </script>
+    <script>
+        $("#uploadFile").change(function() {
+            $("#uploadFileLabel").html(this.files[0].name);
+        })
+        $("#uploadFileSubmit").click(function() {
             if ($(this).text() === "再次点击开始上传！上传过程没有提示，请耐心等待。") {
-                $('#uploadFileForm').submit()
-                $(this).text("文件正在火速上传中，请稍后...")
-            } else if ($(this).text() === '上传文件') {
-                $(this).text("再次点击开始上传！上传过程没有提示，请耐心等待。")
-                $(this).addClass('bg-primary text-white')
+                $("#uploadFileForm").submit();
+                $(this).text("文件正在火速上传中，请稍后...");
+            } else if ($(this).text() === "上传文件") {
+                $(this).text("再次点击开始上传！上传过程没有提示，请耐心等待。");
+                $(this).addClass("bg-primary text-white");
             }
         })
     </script>
@@ -250,8 +307,10 @@
             selected_checkboxs.each(function() {
                 submit_values.push($(this).val());
             });
-            //alert(submit_values.toString());
-            $.post("../get-shares-url/{{ username }}", {
+            if(submit_values === []){
+                return;
+            }
+            $.post("/get-shares-url/{{ username }}?path={{ folder }}", {
                 "data": submit_values.toString()
             }, function(result) {
                 console.log(result);
@@ -261,11 +320,24 @@
             })
         })
     </script>
-    <!--<script>
-        function up_request_path(path) {
-            let url = window.location.toString();
-            url = url.split("?")[0] + "?path=" +path;
-            window.location.href = url;
-        }
-    </script>-->
+    <script>
+        $("#deleteFiles").click(function() {
+            let submit_values = [];
+            const selected_checkboxs = $("input[type='checkbox']:checked");
+            selected_checkboxs.each(function() {
+                submit_values.push($(this).val());
+            });
+            if(submit_values === []){
+                return;
+            }
+            $.post("/deletes?path={{ folder }}", {
+                "data": submit_values.toString()
+            }, function(result) {
+                console.log(result);
+                if (result !== "../") {
+                    window.open(result, "_top");
+                }
+            })
+        })
+    </script>
 {% endblock %}
