@@ -1,5 +1,3 @@
-# 此处是初始化
-
 import os  # 操作文件和目录不说了
 import random  # 分享码生成等
 import re
@@ -7,35 +5,39 @@ import shutil  # 删除文件夹
 import time  # 日志要用
 import urllib
 
-import icecream
 from flask import *  # 程序的灵魂
 from flask_limiter import Limiter  # IP限制
 from flask_limiter.util import get_remote_address
-from flask_cors import cross_origin, CORS
+from flask_cors import cross_origin  # 跨域支持
 import requests
-import zipfile
+import zipfile  # 下载文件夹时压缩
 import zmail  # 发送邮件
-from icecream import ic
 
-import textChecker
+import redis_server
+from secret_tools import *
+import config
 
-thisDir = os.path.dirname(__file__)  # 相对目录
+
+print("-----程序正在初始化-----")
+
+thisDir = os.path.dirname(os.path.abspath(__file__))  # 相对目录
+redis = redis_server.RedisServer(config.redis_host, config.redis_port,
+                                 config.redis_password)
 isServer: bool = os.path.isfile(thisDir + "/webserver")
-fileDir = "files"  # if isServer else "static/files"
-adminList = ["异想之旅"]  # list中的用户可以使用../提权访问所有用户的文件信息
-refuseNames = [["temp", "test"], ["yxzl", "异想之旅", "yixiangzhilv"]]
+fileDir = config.save_path
+adminList = config.admin_username
+refuseNames = [config.refuse_startswith, config.refuse_including]
 app = Flask(__name__)  # 初始化app对象
-app.secret_key = "yxzlpan"  # session的加密密钥
+app.secret_key = config.secret_key  # session的加密密钥
 limiter = Limiter(
     app,
     key_func=get_remote_address,
-    default_limits=["17 per 2 second"],  # 默认限制：每2秒请求3次
+    default_limits=config.default_limits,
     default_limits_exempt_when=lambda: (get_remote_address() in adminList)
 )
-checkText: bool = True  # 是否检查字符串违规信息
-ipAreaRecord = {}
-domainList = [".yixiangzhilv.com", ".yixiangzhilv.top", ".yxzl.top", "127.0.0.1"]
-userMaxSize = {}
+checkText = config.check_text  # 是否检查违规信息
+ipAreaRecord = {}  # IP信息缓存
+userMaxSize = {}  # 用户空间缓存
 
 
 # 此处是初始化
@@ -103,24 +105,6 @@ def check_session(name):
     return value
 
 
-def encrypt_string(text):
-    ans = ""
-    for i in text:
-        ans = ans + "%s-" % (ord(i) + 99)
-    return ans[:-1]
-
-
-def decode_string(text):
-    if text == "iamadmin":
-        return text
-    # 一个垃圾的字符串解密
-    text = text.split("-")
-    ans = ""
-    for i in text:
-        ans = ans + chr(int(i) - 99)
-    return ans
-
-
 def get_time():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -130,13 +114,16 @@ def get_ip_area(ip):
         return None
     if ipAreaRecord.get(ip):
         return ipAreaRecord.get(ip)
-    result = requests.post(url='http://whois.pconline.com.cn/ipJson.jsp',
-                           data={
-                               'json': 'true',
-                               'ip': ip
-                           }).json()['addr']
-    ipAreaRecord[ip] = result
-    return ipAreaRecord.get(ip)
+    try:
+        result = requests.post(url='http://whois.pconline.com.cn/ipJson.jsp',
+                               data={
+                                   'json': 'true',
+                                   'ip': ip
+                               }).json()['addr']
+        ipAreaRecord[ip] = result
+        return ipAreaRecord.get(ip)
+    except:
+        return None
 
 
 def logs(username=None, ip=None, event=None):
@@ -183,12 +170,15 @@ def email_checker(ip, email, username, password, check=None, host=None) -> bool:
 
 def password_checking(a, b) -> bool:
     # 检查两个字符串是否完全相同（我也不知道为甚==不好用了）
-    if len(a) != len(b):
-        return False
-    for i in range(len(a)):
-        if a[i] != b[i]:
+    try:
+        if len(a) != len(b):
             return False
-    return True
+        for i in range(len(a)):
+            if a[i] != b[i]:
+                return False
+        return True
+    except TypeError:
+        return False
 
 
 def set_path(new_path):
@@ -246,7 +236,8 @@ def get_all_folder_files(folder_path, list_all=False, from_path="") -> list:
         else:
             result = result + [[i,
                                 "." + i.split(".")[-1],
-                                get_file_size(folder_name_format(folder_path) + i),
+                                get_file_size(folder_path + "/" + i),
+                                # get_file_size(folder_name_format(folder_path) + i),
                                 from_path]]
     return result
 
@@ -256,11 +247,10 @@ def get_user_max_size(username):
     if userMaxSize.get(username):
         return userMaxSize[username]
     try:
-        with open("%s/users/%s.password" % (thisDir, username), "r", encoding="utf-8") as f:
-            num = int(re.search(".*?\n([\d]*)?\n.*?", f.read()).group(1)) * 1073741824
-            userMaxSize[username] = (format_size(num), num)
-            return userMaxSize[username]
-    except FileNotFoundError:
+        num = float(redis.get("user:%s:space" % username)) * 1073741824
+        userMaxSize[username] = (format_size(num), num)
+        return userMaxSize[username]
+    except:
         return "1.0 GB", 1073741824
 
 
@@ -273,16 +263,6 @@ def is_number(s, try_type="int"):
 
 
 # 此处是工具函数定义
-
-
-def user_email_check(email, username, password=None):
-    with open("%s/sign_up_record.ini" % thisDir, "r", encoding="utf-8") as f:
-        text = f.readline()
-        while text:
-            if "\t%s\t" % email in text and "\t%s\t" % username in text:
-                return True
-            text = f.readline()
-    return False
 
 
 def info_init():
@@ -396,7 +376,6 @@ def share_page(secret_key):
                                                                   file_details[i])),
                                    ""  # 函数中返回文件相对路径地址
                                    )
-            ic(share_code)
             return render_template("share.html",
                                    shared_by=shared_by,
                                    shared_by_check=encrypt_string(shared_by),
@@ -429,7 +408,6 @@ def share_page(secret_key):
             from_folder = file_details[0]
             file_details = get_all_folder_files("%s/%s/%s/%s"
                                                 % (thisDir, fileDir, shared_by, from_folder))
-        icecream.ic(from_folder, from_path)
         return render_template("share.html",
                                shared_by=shared_by,
                                shared_by_check=encrypt_string(shared_by),
@@ -494,7 +472,7 @@ def get_share_url(username, filepath):
     # 分享单个文件或文件夹：两者在此步骤操作相同，都是生成分享链接后保存被分享文件路径
     filepath = filepath.replace("//", "/")
     if checkText and random.random() > 0.9:
-        text_check_result = textChecker.check(filepath)
+        text_check_result = check_text(filepath)
         if text_check_result != "normal":
             flash("文件分享失败：文件名审核不通过！（参考信息 %s）" % text_check_result)
             return redirect("/s")
@@ -604,7 +582,7 @@ def set_dir(username):
         flash("新建目录失败：同志，请别尝试通过 ../ 或 ..\\ 的方式修改服务器目录！")
         return redirect("/?path=%s" % (request.args.get("path")))
     elif "+" in new_name:
-        flash("新建目录失败：由于会引发无法定位的错误，暂时不接受带有“+”的文件夹名称！")
+        flash("新建目录失败：不接受带有“+”的文件夹名称！")
         return redirect("/?path=%s" % (request.args.get("path")))
     dirpath = "%s/%s/%s/%s/%s" % (thisDir,
                                   fileDir,
@@ -640,7 +618,7 @@ def download_file(from_user, filename):
     if from_user == session.get("username") or \
             (request.args.get("check") and
              (from_user == decode_string(request.args.get("check"))
-              or request.args.get("check") == "iamadmin")):
+              or request.args.get("check") == config.debug_key)):
         filepath = "%s/%s/%s/%s" % (thisDir, fileDir, from_user, filename)
         if os.path.isdir(filepath):
             if get_dir_size(filepath, formatText=False) >= 536870912:
@@ -654,7 +632,7 @@ def download_file(from_user, filename):
         print(
             logs(session.get("username"), session.get("ip"),
                  "下载了文件 \"%s/%s\" 。" % (from_user, filename)))
-        return Response(send_chunk(filepath), content_type="application/octet-stream")
+        return send_from_directory("%s/%s/%s" % (thisDir, fileDir, from_user), filename)
     else:
         return abort(404)
 
@@ -663,13 +641,13 @@ def download_file(from_user, filename):
 def upload_file():
     f = request.files["file"]
     if get_dir_size(session["username"], False) >= get_user_max_size(session["username"])[1]:
-        flash("上传失败：年轻人，你以为文件上传也只是一个前端限制吗？")
+        flash("上传失败：年轻人，你以为空间满了禁止上传也只是一个前端限制吗？")
         return redirect("/?path=%s" % folder_name_format(request.args.get("path")))
     if str(f.filename).count(".") == 0:
         flash("上传文件错误：文件必须包含扩展名！")
         return redirect("/?path=%s" % folder_name_format(request.args.get("path")))
-    elif "#" in f.filename:
-        flash("上传文件错误：文件名不能包含#！")
+    elif "#" in f.filename or "+" in f.filename:
+        flash("上传文件错误：文件名不能包含#或+")
         return redirect("/?path=%s" % folder_name_format(request.args.get("path")))
     try:  # 我也不知道会不会出错哪里会出错反正加个try总没错
         folder_name = session.get("username")
@@ -720,7 +698,9 @@ def index():
                            sum_size=(get_dir_size(session.get("username")),
                                      get_dir_size(session.get("username"),
                                                   formatText=False)),
-                           max_size=get_user_max_size(session.get("username")))
+                           max_size=get_user_max_size(session.get("username")),
+                           visited=redis.insrget("site:pan:visited"),
+                           index_title=config.index_title)
 
 
 @app.route("/login", methods=["POST", "GET"])
@@ -733,15 +713,11 @@ def login():
             session["username"] = request.form["username"]
             return redirect("/")
         # POST是登录检查请求
-        password_filename = "%s/users/%s.password" % (
-            thisDir, request.form["username"])
-        if os.path.isfile(password_filename):  # 如果存在有用户名对应的密码文件
-            f = open(password_filename, "r", encoding="UTF-8")
-            password = f.readline()[:-1]
+        password = redis.get("user:%s:password" % request.form["username"])
+        if password:
             if password_checking(request.form["password"], password):
                 # 匹配通过则登录成功，session获取username，打印日志，返回首页
                 session["username"] = request.form["username"]
-                f.close()
                 resp = make_response(redirect(request.args.get("from") or "/"))
                 domain = re.search("https?://(.*)?:?([\d]*)?/.*",
                                    request.url).group(1)
@@ -755,7 +731,6 @@ def login():
                 return resp
             else:
                 # 比对不通过，返回提示信息
-                f.close()
                 flash("登录失败：用户名和密码不匹配，请检查输入！")
                 return redirect("/login?from=%s" % request.args.get("from") or "")
         else:
@@ -775,23 +750,12 @@ def sign_up():
     if request.method == "POST":
         # 重置密码部分
         if request.form["username"] == session.get("username"):  # 修改当前登录的账号的密码
-            f = open("%s/sign_up_record.ini" % thisDir, "a", encoding="UTF-8")
-            f.write("%s\t%s\t%s\t%s\t%s\n" % (time.strftime(
-                "%Y-%m-%d %H:%M:%S", time.localtime()), request.form["email"],
-                                              request.form["username"],
-                                              request.form["password"], session.get("ip")))
-            f.close()
-            f = open("%s/users/%s.password" % (thisDir, request.form["username"]), "r", encoding="utf-8")
-            text = f.read()
-            print([text])
-            text = text[text.index("\n"):]
-            f.close()
-            f = open("%s/users/%s.password" % (thisDir, request.form["username"]), "w", encoding="utf-8")
-            f.write(request.form["password"] + text)
-            f.close()
+            redis.set("user:%s:password" % request.form["username"],
+                      request.form["password"])
             flash("修改密码成功！")
             return redirect("/")
-        elif user_email_check(request.form["email"], request.form["username"]):
+        elif password_checking(request.form["email"],
+                               redis.get("user:%s:email" % request.form["username"])):
             # 修改未登录的账号的密码
             random.seed(request.form["username"])
             if email_checker(ip=session.get("ip"),
@@ -814,20 +778,21 @@ def sign_up():
         if request.form["username"].count(".") == 3:
             flash("注册失败：用户名疑似IP地址，不予注册！")
             return redirect("/sign-up")
-        elif len(request.form["username"]) > 20:
+        elif len(request.form["username"]) > 25:
             flash("注册失败：用户名过长。")
             return redirect("/sign-up")
-        elif os.path.isfile("%s/users/%s.password" % (thisDir, request.form["username"])):
+        elif redis.get("user:%s:password" % request.form["username"]):
             flash("注册失败：用户名已存在。")
             return redirect("/sign-up")
         elif any(i in request.form["username"] for i in "\\/?:*\"<>|."):
-            flash("注册失败：用户名包含非法字符，Windows不能正确读取！非法字符列表：\\ / ? : * \" < > | .")
+            flash("注册失败：用户名包含非法字符，不能正确读取！"
+                  "非法字符列表：\\ / ? : * \" < > | .")
             return redirect("/sign-up")
         elif any(request.form["username"].startswith(check) for check in refuseNames[0]) \
                 or any(check in request.form["username"] for check in refuseNames[1]):
             flash("注册失败：该用户名是异想之旅保留的字段，不予注册！")
             return redirect("/sign-up")
-        elif textChecker.check(request.form.get("username")) != "normal":
+        elif check_text(request.form.get("username")) != "normal":
             # 这个检测要付费，自然放最后
             flash("注册失败：用户名自动校验不予通过！")
             return redirect("/sign-up")
@@ -856,8 +821,9 @@ def sign_up():
                error_message="Sorry, an IP address can only set one account in 24 hours.")
 def set_user(email, username, password):
     info_init()
+
     random.seed(username)
-    if request.args.get("check") != "iamadmin" \
+    if request.args.get("check") != config.debug_key \
             and not (password_checking(decode_string(request.args.get("check")),
                                        "%s?%s" % (username, random.randint(100000, 999999)))
                      or password_checking(decode_string(request.args["check"]), username)):
@@ -865,27 +831,18 @@ def set_user(email, username, password):
         flash("警告：注册校验码错误！请勿尝试刷账号，否则将会封禁IP。")
         return redirect("/sign-up")
     random.seed(username)
-    if os.path.isfile(thisDir + "/users/%s.password" % username) and not (
-            request.args.get("check") == "iamadmin" or
+    if redis.get("user:%s:password" % username) and not (
+            request.args.get("check") == config.debug_key or
             password_checking(decode_string(request.args.get("check")),
                               "%s?%s" % (username, random.randint(100000, 999999)))):
         print(logs(username, session.get("ip"), "：该用户名被违规重复注册（密码为\"%s\"）！" % password))
         flash("警告：该用户名已被注册！恶意注册将会封IP处理，请谨慎。")
         return redirect("/sign-up")
-    # 写入注册记录
-    with open("%s/sign_up_record.ini" % thisDir, "a", encoding="utf-8") as f:
-        f.write("%s\t%s\t%s\t%s\t%s\n" % (time.strftime(
-            "%Y-%m-%d %H:%M:%S", time.localtime()), email, username, password, session.get("ip")))
-    reset_password = os.path.isfile("%s/users/%s.password" % (thisDir, username))
-    if reset_password:
-        with open("%s/users/%s.password" % (thisDir, username), "r", encoding="UTF-8") as f:
-            text = f.read()
-            text = password + text[text.index("\n"):]
-    with open("%s/users/%s.password" % (thisDir, username), "w", encoding="UTF-8") as f:
-        if reset_password:
-            f.write(text)
-        else:
-            f.write("%s\n5\n" % password)
+
+    redis.set("user:%s:password" % username, password)
+    if not redis.get("user:%s:space" % username):
+        redis.set("user:%s:email" % username, email)
+        redis.set("user:%s:space" % username, 5)
     print(logs(username, session.get("ip"), "%s成功（密码为\"%s\"）。"
                % ("注册" if decode_string(request.args.get("check")) == username
                   else "修改密码", password)))
@@ -919,7 +876,7 @@ def logout():
 @app.route("/404")
 @app.errorhandler(404)
 def to_index(info=None):
-    flash("404：你刚刚访问了不存在的资源，已为你重定向到主页！")
+    flash("访问出错：你刚刚访问了不存在的资源，已为你重定向到主页！")
     return redirect("/")
 
 
@@ -928,6 +885,7 @@ def to_index(info=None):
 
 @app.route("/ip")
 def return_ip():
+    # It's just a test api.
     info_init()
     # return jsonify({'X-Real-IP': request.environ['X-Real-IP'],
     #                 'HTTP_X_FORWARDED_FOR':
@@ -939,19 +897,18 @@ def return_ip():
 @app.route("/decode-string", methods=["POST"])
 @cross_origin()
 def return_decode_string():
-    if not any((i in request.host) for i in domainList):
-        print(request.headers.get("Host"))
-        return "跨域错误！"
+    # This is opened for other services of yxzl.
     text = decode_string(request.values.get("secret") or "")
-    return text.title()
+    return text
 
 
 @app.context_processor
 def default():
-    username = session.get("username")
-    return dict(username=username, is_server=isServer)
+    return {"username": session.get("username"), "is_server": isServer,
+            "server_title": config.server_title}
 
 
 if __name__ == "__main__":
     print(logs(event="服务器启动成功。"))
-    app.run(debug=True, port=8000, host="0.0.0.0")
+    app.run(debug=config.debug_mode,
+            port=config.listening_port, host=config.listening_host)
