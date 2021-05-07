@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width" initial-scale="1"/>
-        <title>{% block title %}{% endblock %} - 异想之旅</title>
+        <title>{% block title %}{% endblock %} - {{ server_title }}</title>
         <meta charset="utf-8" />
         <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
         <link rel="icon" type="image/png" sizes="144x144" href="/static/favicon.png" />
@@ -19,16 +19,10 @@
             <div class="collapse navbar-collapse" id="collapsibleNavbar">
                 <ul class="navbar-nav ml-auto">
                     <li class="nav-item">
-                        {% if not username or username.count('.')==3 %}
-                            {% if not login_page %}
-                                <a class="nav-link" href="" data-toggle="modal" data-target="#showLogin">
-                                    注册/登录
-                                </a>
-                            {% else %}
-                                <a class="nav-link" href="">
-                                    注册/登录
-                                </a>
-                            {% endif %}
+                        {% if not username or username.count(".")==3 %}
+                            <a class="nav-link" href="/login">
+                                注册/登录
+                            </a>
                         {% else %}
                             <a class="nav-link" href="/sign-up" target="_blank" title="点我修改密码">
                                 当前登录：{{username}}
@@ -45,26 +39,6 @@
             {% block content %}{% endblock %}
         </div>
     </body>
-
-    {% if not login_page %}
-    <div class="modal fade" id="showLogin">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">
-                        <a href="/login" target="_blank">
-                            注册/登录
-                        </a>
-                    </h4>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body" style="height: 80vh">
-                    <iframe src="/login" class="w-100 h-100 border-0"></iframe>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     {% block modal %}{% endblock %}
 

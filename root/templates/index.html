@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}网盘首页{% endblock %}
+{% block title %}{{ index_title }}{% endblock %}
 
 
 {% block content %}
@@ -24,7 +24,7 @@
             当前路径：{{ "/" + folder }}&emsp;&emsp;
             <a href="/?path={{ "/".join(folder.split("/")[:-2]) + "/" }}">返回上级目录</a>&emsp;&emsp;
             <a href="/?path=">返回根目录</a>&emsp;&emsp;
-            <span id="currentServer" title="点我可切换服务器；服务器之间的文件、用户信息暂不互通！">
+            <span id="currentServer" title="点我可切换服务器；服务器之间的文件不互通">
                 当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
             </span>
         </div>
@@ -161,6 +161,7 @@
 
     <div style="text-align: center;">
         <h5>本项目由王子开发，特别感谢杨中天提供的前端开发、服务配置等技术指导！</h5>
+        <h5>总请求次数：{{ visited }}</h5>
     </div>
 {% endblock %}
 
@@ -193,7 +194,7 @@
                     <div class="alert alert-info">
                         当前路径：{{ "/" + folder }}
                         &emsp;&emsp;
-                        <span title="本次服务器搭建时复制了文件，但未来服务器之间的文件不会互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
+                        <span title="服务器之间的文件不互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
                             当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
                         </span>
                     </div>
@@ -213,10 +214,13 @@
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning">
+                        异想之旅禁止上传反动、暴力、色情及侵权等内容的文件，如触发监测系统，系统将有权删除该文件。
+                    </div>
                     <div class="alert alert-info">
                         当前路径：{{ "/" + folder }}
                         &emsp;&emsp;
-                        <span title="本次服务器搭建时复制了文件，但未来服务器之间的文件不会互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
+                        <span title="服务器之间的文件不互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
                             当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
                         </span>
                     </div>
@@ -275,17 +279,8 @@
 
 
 {% block js %}
-    <script>
-        $("#currentServer").click(function () {
-            if(location.host === "pan.yixiangzhilv.com"){
-                window.open("http://pan.yxzl.top:8000/", "_top");
-            }else if(location.host === "pan.yxzl.top:8000"){
-                window.open("https://pan.yixiangzhilv.com/", "_top");
-            }else{
-                $(this).hide();
-            }
-        })
-    </script>
+    {# This js is for yxzl, if you don't need to change server, please delete this import. #}
+    <script src="/static/js/change-server.js"></script>
     <script>
         $("#uploadFile").change(function() {
             $("#uploadFileLabel").html(this.files[0].name);
