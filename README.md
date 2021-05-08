@@ -30,7 +30,7 @@ Flask框架的Web项目运行十分简单：只需要运行项目目录下的mai
 
 The first successful programme made by Yixiangzhilv!
 
-View: [pan.yixiangzhilv.com:8000](http://pan.yixiangzhilv.com:8000/)
+View: [https://pan.yixiangzhilv.com/](https://pan.yixiangzhilv.com/)
 
 The source code is on the way, please wait!
 
