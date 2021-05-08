@@ -8,18 +8,10 @@ def check_text(text):
 
 # 必须包括内容：加密和解密字符串算法（两者必须可互逆运算）
 def encrypt_string(text):
-    ans = ""
-    for i in text:
-        ans = ans + "%s-" % (ord(i) + 99)
-    return ans[:-1]
+    # Put your encrypt-algorithm here.
+    return text
 
 
 def decode_string(text):
-    try:
-        text = text.split("-")
-        ans = ""
-        for i in text:
-            ans = ans + chr(int(i) - 99)
-        return ans
-    except:
-        return text
+    # Put your decode-algorithm here.
+    return text
