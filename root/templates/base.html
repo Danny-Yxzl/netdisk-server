@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width" initial-scale="1"/>
-        <title>{% block title %}{% endblock %} - {{ server_title }}</title>
+        <title>{% block title %}{% endblock %} - {{ short_title }}</title>
         <meta charset="utf-8" />
         <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
         <link rel="icon" type="image/png" sizes="144x144" href="/static/favicon.png" />
@@ -12,7 +12,7 @@
 
     <body>
         <nav class="navbar navbar-expand-md bg-primary navbar-dark">
-            <a class="navbar-brand" href="/" target="_top">异想之旅轻量网盘服务</a>
+            <a class="navbar-brand" href="/" target="_top">{{ server_title }}</a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
                 <span class="navbar-toggler-icon"></span>
             </button>

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ index_title }}{% endblock %}
+{% block title %}
+    {{ server_title }}
+{% endblock %}
 
 
 {% block content %}
@@ -19,14 +21,12 @@
                 {{ message }}
             </div>
         {% endfor %}
-        <div class="alert alert-primary">
+        <div class="alert alert-primary" id="page-info">
             已用空间：{{ sum_size.0 }} / {{ max_size.0 }}&emsp;&emsp;
             当前路径：{{ "/" + folder }}&emsp;&emsp;
             <a href="/?path={{ "/".join(folder.split("/")[:-2]) + "/" }}">返回上级目录</a>&emsp;&emsp;
             <a href="/?path=">返回根目录</a>&emsp;&emsp;
-            <span id="currentServer" title="点我可切换服务器；服务器之间的文件不互通">
-                当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
-            </span>
+            {# change-server.js中会添加服务器信息的span到此处 #}
         </div>
 
         <table class="table table-hover">
@@ -155,6 +155,9 @@
          <a data-toggle="modal" data-target="#chatPage">
             <button class="btn btn-info">留言板</button>
         </a>
+        <a href="https://github.com/Danny-Yxzl/netdisk-server" target="_blank" style="text-decoration: None;">
+            <button class="btn btn-info">Github</button>
+        </a>
     </div>
 
     <br /><br />
@@ -191,12 +194,10 @@
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info">
+                    <div class="alert alert-info" id="serverinfo_of_newfolder">
                         当前路径：{{ "/" + folder }}
                         &emsp;&emsp;
-                        <span title="服务器之间的文件不互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
-                            当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
-                        </span>
+                        {#  #}
                     </div>
                     <form method="POST" action="/set-dir/{{ username }}?path={{ folder }}" style="display: inline; text-align: center;">
                         <input style="display: inline; width: 85%;" type="text" name="new_folder_name" id="new_folder_name" class="form-control" placeholder="请输入新文件夹名称" required>
@@ -215,14 +216,12 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning">
-                        异想之旅禁止上传反动、暴力、色情及侵权等内容的文件，如触发监测系统，系统将有权删除该文件。
+                        {{ short_name }}禁止上传反动、暴力、色情及侵权等内容的文件，如触发监测系统，系统将有权删除该文件。
                     </div>
-                    <div class="alert alert-info">
+                    <div class="alert alert-info" id="serverinfo_of_upload">
                         当前路径：{{ "/" + folder }}
                         &emsp;&emsp;
-                        <span title="服务器之间的文件不互通，请选择自己需要的服务器：文件偏大的请使用异想之旅自建服务器，文件较小、要求稳定性的请使用阿里云服务器。">
-                            当前服务器：{{ "阿里云服务器" if is_server else "异想之旅自建服务器" }}
-                        </span>
+                        {#  #}
                     </div>
                     <form id="uploadFileForm" action="/upload?path={{ folder }}" enctype="multipart/form-data" method="POST">
                         <div class="form-group">
