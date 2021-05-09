@@ -17,7 +17,6 @@ import redis_server
 from secret_tools import *
 import config
 
-
 print("-----程序正在初始化-----")
 
 thisDir = os.path.dirname(os.path.abspath(__file__))  # 相对目录
@@ -139,9 +138,8 @@ def logs(username=None, ip=None, event=None):
     return text
 
 
-def email_checker(ip, email, username, password, check=None, host=None) -> bool:
-    # 发送验证电子邮件
-    print(check)
+def email_checker(ip, email, username, password, check=None, host=None):
+    # 发送验证电子邮件，返回值为发送成功或失败
     try:
         if not ip:
             ip = "未知"
@@ -150,18 +148,21 @@ def email_checker(ip, email, username, password, check=None, host=None) -> bool:
             host or request.host, email, username, password, check or encrypt_string(username))
         mail_content = {
             "subject":
-                "异想之旅轻量网盘服务邮件验证码",
+                "%s邮件验证码" % config.server_title,
             "content_html":
                 """
-                <p>用户你好，有人（IP：%s  参考归属地：%s）正在使用该邮箱地址注册异想之旅轻量网盘服务账号。</p>
+                <p>用户你好，有人（IP：%s  参考归属地：%s）正在使用该邮箱地址注册%s账号。</p>
                 <p>如果确认是你本人所为，请<a href="%s">点我确认</a></p>
                 <br />
-                <p>该邮件由机器人自动发送，回复邮件或寻求帮助请联系<a href="mailto:mail@yixiangzhilv.com">mail@yixiangzhilv.com</a></p>
-                """ % (ip, ip_area, url),
+                <p>该邮件由机器人自动发送，回复邮件或寻求帮助请联系<a href="mailto:%s">%s</a></p>
+                """ % (ip, ip_area, config.short_title, url,
+                       config.contact_email, config.contact_email),
             "from":
-                "异想之旅邮箱验证验证 <coder@yixiangzhilv.com>"
+                "%s邮箱验证 <%s>" % (config.short_title,
+                                 config.coder_email_address)
         }
-        server = zmail.server("coder@yixiangzhilv.com", "@Codercoder")
+        server = zmail.server(config.coder_email_address,
+                              config.coder_email_password)
         server.send_mail([email], mail_content)
         return True
     except:
@@ -169,7 +170,7 @@ def email_checker(ip, email, username, password, check=None, host=None) -> bool:
 
 
 def password_checking(a, b) -> bool:
-    # 检查两个字符串是否完全相同（我也不知道为甚==不好用了）
+    # 检查两个字符串是否完全相同（有时==会失效，原因未知）
     try:
         if len(a) != len(b):
             return False
@@ -699,13 +700,12 @@ def index():
                                      get_dir_size(session.get("username"),
                                                   formatText=False)),
                            max_size=get_user_max_size(session.get("username")),
-                           visited=redis.insrget("site:pan:visited"),
-                           index_title=config.index_title)
+                           visited=redis.insrget("site:pan:visited")
+                           )
 
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
-    # todo 回到登录前访问的界面
     if request.method == "POST":
         if any(request.form["username"].startswith(i) for i in refuseNames[0]) \
                 and (not request.form["username"][4:]
@@ -790,9 +790,9 @@ def sign_up():
             return redirect("/sign-up")
         elif any(request.form["username"].startswith(check) for check in refuseNames[0]) \
                 or any(check in request.form["username"] for check in refuseNames[1]):
-            flash("注册失败：该用户名是异想之旅保留的字段，不予注册！")
+            flash("注册失败：该用户名是我们保留的字段，不予注册！")
             return redirect("/sign-up")
-        elif check_text(request.form.get("username")) != "normal":
+        elif checkText and check_text(request.form.get("username")) != "normal":
             # 这个检测要付费，自然放最后
             flash("注册失败：用户名自动校验不予通过！")
             return redirect("/sign-up")
@@ -815,13 +815,12 @@ def sign_up():
         return render_template("sign_up.html")
 
 
-@app.route("/set-user/<email>/<username>/<password>", methods=["GET", "POST"])
+@app.route("/set-user/<email>/<username>/<password>", methods=["GET"])
 @limiter.limit("1 per day",
                exempt_when=lambda: (get_remote_address() in adminList),
-               error_message="Sorry, an IP address can only set one account in 24 hours.")
+               error_message="Sorry, an IP address can only set one account in 24 hours. If you haven't set an account today,please contact us.")
 def set_user(email, username, password):
     info_init()
-
     random.seed(username)
     if request.args.get("check") != config.debug_key \
             and not (password_checking(decode_string(request.args.get("check")),
@@ -905,6 +904,7 @@ def return_decode_string():
 @app.context_processor
 def default():
     return {"username": session.get("username"), "is_server": isServer,
+            "short_title": config.short_title,
             "server_title": config.server_title}
 
 
