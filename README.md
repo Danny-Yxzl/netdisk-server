@@ -4,8 +4,6 @@
 
 项目预览：[https://pan.yixiangzhilv.com/](https://pan.yixiangzhilv.com/)
 
-源代码正在赶来的路上，请耐心等待！
-
 ## 简介
 这是一个Python Web项目。项目使用Flask编程，前端页面使用Jinja2模板动态生成，静态部分主要为Bootstrap设计。这是一个微型的综合项目--总计代码量仅两千行，但是包含有前端后端、静态文件、页面模板等多层概念，适合新手学习研究。
 
@@ -33,8 +31,6 @@ Flask框架的Web项目运行十分简单：只需要运行项目目录下的mai
 The first successful programme made by Yixiangzhilv!
 
 View: [pan.yixiangzhilv.com:8000](http://pan.yixiangzhilv.com:8000/)
-
-The source code is on the way, please wait!
 
 ## Introduce
 This is a Python-Web programme. It powers by Flask of Python, the HTML file creates by Jinja2 timely, and the static templates were written by Bootstrap by HTML, CSS and JavaScript. This programme is light but comprehensive - the amount of the lines of codes is smaller than a thousand, but it includes Front-End and Back-End in a web programme, static files, HTML templates and lots of other programming knowledge. It is kindness to new-hand!
