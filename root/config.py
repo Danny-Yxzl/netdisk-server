@@ -39,6 +39,7 @@ refuse_including = ["异想之旅", "yxzl", "yixiangzhilv"]
 default_limits = ["15 per 2 second"]
 
 # Email config
+check_email_before_sign_up = True
 coder_email_address = "coder@yixiangzhilv.com"
 coder_email_password = "password"
 contact_email = "mail@yixiangzhilv.com"
